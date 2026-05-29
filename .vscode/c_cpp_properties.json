@@ -1,0 +1,18 @@
+{
+    "configurations": [
+        {
+            "name": "macOS-BPF-Mock",
+            "includePath": [
+                "${workspaceFolder}/**",
+                "${workspaceFolder}/ebpf/mock_headers"
+            ],
+            "defines": [],
+            "macFrameworkPath": [],
+            "compilerPath": "/usr/bin/clang",
+            "cStandard": "c11",
+            "cppStandard": "c++17",
+            "intelliSenseMode": "macos-clang-arm64"
+        }
+    ],
+    "version": 4
+}
