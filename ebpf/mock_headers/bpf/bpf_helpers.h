@@ -4,11 +4,28 @@
 #define BPF_KPROBE(name, args...) int name(struct pt_regs *ctx, ##args)
 #define BPF_KRETPROBE(name, args...) int name(struct pt_regs *ctx, ##args)
 
-static void *(*bpf_map_lookup_elem)(void *map, const void *key) = (void *)1;
-static int (*bpf_map_update_elem)(void *map, const void *key, const void *value, unsigned long long flags) = (void *)2;
-static int (*bpf_map_delete_elem)(void *map, const void *key) = (void *)3;
-static unsigned long long (*bpf_get_current_pid_tgid)(void) = (void *)4;
-static unsigned long long (*bpf_ktime_get_ns)(void) = (void *)5;
+static inline void *bpf_map_lookup_elem(void *map, const void *key) {
+    (void)map; (void)key;
+    return (void *)0;
+}
+
+static inline int bpf_map_update_elem(void *map, const void *key, const void *value, unsigned long long flags) {
+    (void)map; (void)key; (void)value; (void)flags;
+    return 0;
+}
+
+static inline int bpf_map_delete_elem(void *map, const void *key) {
+    (void)map; (void)key;
+    return 0;
+}
+
+static inline unsigned long long bpf_get_current_pid_tgid(void) {
+    return 0;
+}
+
+static inline unsigned long long bpf_ktime_get_ns(void) {
+    return 0;
+}
 
 static inline void *bpf_ringbuf_reserve(void *ringbuf, unsigned long long size, unsigned long long flags) {
     (void)ringbuf; (void)size; (void)flags;
