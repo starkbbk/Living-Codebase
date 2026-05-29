@@ -11,12 +11,23 @@
 #include <sys/wait.h>
 #include <sys/user.h>
 #include <sys/syscall.h>
+
+#if defined(__x86_64__)
+#define SYSCALL_OPCODE_SIZE 2
+static const unsigned char syscall_ins[] = {0x0f, 0x05}; // syscall
+#elif defined(__aarch64__)
+#define SYSCALL_OPCODE_SIZE 4
+static const unsigned char syscall_ins[] = {0x01, 0x00, 0x00, 0xD4}; // svc #0
+#endif
+
 #else
 // Mock definitions to satisfy macOS C/C++ IDE linters and compile stubs cleanly
 #define MAP_FAILED ((void *)-1)
 struct user_regs_struct {
     unsigned long rip;
     unsigned long rax;
+    unsigned long pc;
+    unsigned long regs[31];
 };
 #endif
 
@@ -58,31 +69,51 @@ int inject_patch(HotSwapContext* ctx) {
         return -1;
     }
     regs = saved_regs;
+
+#if defined(__x86_64__)
     printf("[INJECTOR] Original RIP: %p\n", (void*)regs.rip);
+    unsigned long target_ip = regs.rip;
+#elif defined(__aarch64__)
+    printf("[INJECTOR] Original PC: %p\n", (void*)regs.pc);
+    unsigned long target_ip = regs.pc;
+#else
+    unsigned long target_ip = 0;
+#endif
 
     // Step 3: Inject mmap syscall into the target's instruction pointer
-    // In x86_64: syscall opcode is 0x0f05 (2 bytes)
-    unsigned char syscall_ins[] = {0x0f, 0x05};
-    long saved_text = ptrace(PTRACE_PEEKTEXT, pid, (void*)regs.rip, NULL);
+    long saved_text = ptrace(PTRACE_PEEKTEXT, pid, (void*)target_ip, NULL);
     
-    // Temporarily overwrite memory at current RIP with `syscall`
+    // Temporarily overwrite memory at current instruction pointer with syscall instructions
     long temp_text = saved_text;
-    memcpy(&temp_text, syscall_ins, sizeof(syscall_ins));
-    if (ptrace(PTRACE_POKETEXT, pid, (void*)regs.rip, (void*)temp_text) < 0) {
+    memcpy(&temp_text, syscall_ins, SYSCALL_OPCODE_SIZE);
+    if (ptrace(PTRACE_POKETEXT, pid, (void*)target_ip, (void*)temp_text) < 0) {
         perror("[ERROR] Failed to write syscall instruction");
         ptrace(PTRACE_DETACH, pid, NULL, NULL);
         return -1;
     }
 
     // Set up registers for mmap(NULL, size, PROT_READ|WRITE|EXEC, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0)
-    // Syscall number for mmap is 9 in Linux x86_64
-    regs.rax = SYS_mmap;
-    regs.rdi = 0;                                 // addr = NULL
-    regs.rsi = ctx->patch_size;                   // allocation size
-    regs.rdx = PROT_READ | PROT_WRITE | PROT_EXEC; // execute permissions
-    regs.r10 = MAP_PRIVATE | MAP_ANONYMOUS;       // flags
-    regs.r8  = -1;                                // fd = -1
-    regs.r9  = 0;                                 // offset = 0
+#if defined(__x86_64__)
+    // x86_64 ABI Syscall layout
+    regs.rax = SYS_mmap; // 9
+    regs.rdi = 0;
+    regs.rsi = ctx->patch_size;
+    regs.rdx = PROT_READ | PROT_WRITE | PROT_EXEC;
+    regs.r10 = MAP_PRIVATE | MAP_ANONYMOUS;
+    regs.r8  = -1;
+    regs.r9  = 0;
+#elif defined(__aarch64__)
+    // aarch64 (ARM64) ABI Syscall layout:
+    // X8 is syscall number (mmap on arm64 is 222)
+    // X0-X5 are arguments
+    regs.regs[8] = 222; // SYS_mmap on aarch64
+    regs.regs[0] = 0;   // addr
+    regs.regs[1] = ctx->patch_size;
+    regs.regs[2] = PROT_READ | PROT_WRITE | PROT_EXEC;
+    regs.regs[3] = MAP_PRIVATE | MAP_ANONYMOUS;
+    regs.regs[4] = -1;
+    regs.regs[5] = 0;
+#endif
 
     if (ptrace(PTRACE_SETREGS, pid, NULL, &regs) < 0) {
         perror("[ERROR] Failed to set registers for mmap");
@@ -103,16 +134,23 @@ int inject_patch(HotSwapContext* ctx) {
         goto restore_and_fail;
     }
     
+#if defined(__x86_64__)
     void* remote_addr = (void*)new_regs.rax;
+#elif defined(__aarch64__)
+    void* remote_addr = (void*)new_regs.regs[0]; // X0 contains return value on arm64
+#else
+    void* remote_addr = MAP_FAILED;
+#endif
+
     if (remote_addr == MAP_FAILED || (long)remote_addr < 0) {
         fprintf(stderr, "[ERROR] Remote mmap failed inside target context (returned %p)\n", remote_addr);
         goto restore_and_fail;
     }
     printf("[INJECTOR] Executable page allocated inside target at: %p\n", remote_addr);
 
-    // Step 4: Restore original instruction code at RIP
-    if (ptrace(PTRACE_POKETEXT, pid, (void*)saved_regs.rip, (void*)saved_text) < 0) {
-        perror("[ERROR] Failed to restore original RIP instructions");
+    // Step 4: Restore original instruction code at IP
+    if (ptrace(PTRACE_POKETEXT, pid, (void*)target_ip, (void*)saved_text) < 0) {
+        perror("[ERROR] Failed to restore original instructions");
         goto restore_and_fail;
     }
 
