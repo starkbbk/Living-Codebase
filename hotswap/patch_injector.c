@@ -3,11 +3,22 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <sys/types.h>
+
+#ifdef __linux__
 #include <sys/ptrace.h>
 #include <sys/mman.h>
 #include <sys/wait.h>
 #include <sys/user.h>
 #include <sys/syscall.h>
+#else
+// Mock definitions to satisfy macOS C/C++ IDE linters and compile stubs cleanly
+#define MAP_FAILED ((void *)-1)
+struct user_regs_struct {
+    unsigned long rip;
+    unsigned long rax;
+};
+#endif
 
 /*
  * HotSwapContext structure definition
@@ -25,6 +36,7 @@ typedef struct {
  * via ptrace syscall injection, copies the patch bytes, and writes a JMP redirection hook.
  */
 int inject_patch(HotSwapContext* ctx) {
+#ifdef __linux__
     pid_t pid = ctx->target_pid;
     printf("[INJECTOR] Attaching to PID %d...\n", pid);
 
@@ -151,6 +163,13 @@ restore_and_fail:
     ptrace(PTRACE_SETREGS, pid, NULL, &saved_regs);
     ptrace(PTRACE_DETACH, pid, NULL, NULL);
     return -1;
+#else
+    printf("[INJECTOR] [MOCK] Attaching to PID %d...\n", ctx->target_pid);
+    printf("[INJECTOR] [MOCK] Remote allocation mapped at: %p\n", (void*)0x7FFF004000);
+    printf("[INJECTOR] [MOCK] Patch instructions written successfully.\n");
+    printf("[SUCCESS] Hot-swap injection simulated on non-Linux platform.\n");
+    return 0;
+#endif
 }
 
 int main(int argc, char* argv[]) {
