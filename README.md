@@ -44,7 +44,7 @@ graph TD
         PtraceSwapper["ptrace / mmap Injector (C)"]
     end
 
-    TargetProc -->|alloc/dealloc| MallocProbe
+    TargetProc -->|alloc and dealloc| MallocProbe
     TargetProc -->|null dereference| PFProbe
     MallocProbe -->|track bounds| RingBuf
     PFProbe -->|emit fault event| RingBuf
@@ -53,7 +53,7 @@ graph TD
     Daemon -->|2. Query baseline paths| DB
     Daemon -->|3. Trigger genetic patcher| Mutator
     Mutator -->|4. Generate AST mutation candidates| Z3Solver
-    Z3Solver -->|5. Solve constraints (UNSAT = Safe)| Mutator
+    Z3Solver -->|5. Solve constraints - UNSAT is Safe| Mutator
     Mutator -->|6. Compile verified patch| Daemon
     Daemon -->|7. Execute injection| PtraceSwapper
     PtraceSwapper -->|8. ptrace / mmap JMP hook| JMP
