@@ -1,5 +1,7 @@
 # 🚀 Living Codebase — Self-Healing Software Runtime (PoC)
 
+[![Dashboard](https://img.shields.io/badge/dashboard-live-00ff9d?style=flat-square&logo=github)](https://starkbbk.github.io/Living-Codebase/)
+
 > *Software that heals itself at runtime — no crash, no restart, no downtime.*
 
 A system-level daemon implementing **proactive kernel fault interception**, **automated genetic AST repair**, **Z3 SMT formal validation**, and **live hot-swapping** on a running process without downtime.
