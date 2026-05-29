@@ -1,18 +1,5 @@
-# 1. Configuration for Kernel eBPF files only
-If:
-  PathMatch: ebpf/.*\.c
 CompileFlags:
   Add: [
-    "-Iebpf/mock_headers",
-    "-target", "bpf"
-  ]
-
----
-
-# 2. Configuration for Userspace C files (macOS SDK inclusion)
-If:
-  PathMatch: hotswap/.*\.c
-CompileFlags:
-  Add: [
-    "-isysroot", "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk"
+    "-isysroot", "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk",
+    "-Iebpf/mock_headers"
   ]

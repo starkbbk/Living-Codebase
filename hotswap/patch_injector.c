@@ -23,6 +23,8 @@ static const unsigned char syscall_ins[] = {0x01, 0x00, 0x00, 0xD4}; // svc #0
 #else
 // Mock definitions to satisfy macOS C/C++ IDE linters and compile stubs cleanly
 #define MAP_FAILED ((void *)-1)
+typedef int pid_t;
+typedef unsigned long size_t;
 struct user_regs_struct {
     unsigned long rip;
     unsigned long rax;
