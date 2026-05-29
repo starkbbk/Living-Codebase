@@ -258,7 +258,7 @@ Real kernel-level eBPF probes require Linux 5.15+ with `CAP_BPF` and `CAP_SYS_PT
 ## 👤 Author
 
 **Shivanand Verma** ([@starkbbk](https://github.com/starkbbk))
-B.Tech CSE (AI & ML) — PSIT Kanpur
+B.Tech CSE (AI & ML)
 
 *Built as part of research into autonomous software resilience systems.*
 
